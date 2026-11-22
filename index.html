@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="ru"><head><style>
+<!DOCTYPE html><html lang="ru"><head><style>
 @font-face {
   font-family: "Optimistic";
   font-style: normal;
@@ -23,80 +22,109 @@
 </style><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>PDF — сканер</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
-async function getPDFBlob(){applyCrop(); let cv=document.getElementById('preview'); let data=cv.toDataURL('image/jpeg',0.9); const {jsPDF}=window.jspdf; let pdf=new jsPDF({orientation: cv.width>cv.height?'l':'p', unit:'mm', format:'a4'}); let pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(); pdf.addImage(data,'JPEG',0,0,pw,ph); return pdf.output('blob');}
-async function sharePDF(){if(!img.src){alert('Сначала выбери фото'); return} try{let blob=await getPDFBlob(); let file=new File([blob],'scan.pdf',{type:'application/pdf'}); if(navigator.canShare && navigator.canShare({files:[file]})){await navigator.share({files:[file], title:'PDF — скан', text:'Мой скан'}); status.textContent='Отправлено ✓'; return;} // fallback - download then open share sheet
-let a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='scan.pdf'; a.click(); alert('PDF скачан. Теперь выбери Телеграм в меню Поделиться.'); }catch(e){alert('Не получилось поделиться, PDF скачан. Отправь его вручную в Телеграм.');}}
-function shareTelegram(){makePDF(); setTimeout(()=>{window.open('https://t.me/share/url?url='+encodeURIComponent('Мой скан PDF — сделал в приложении PDF')+'&text='+encodeURIComponent('Мой скан PDF'));},300);}
-function shareWhatsApp(){makePDF(); setTimeout(()=>{window.open('https://wa.me/?text='+encodeURIComponent('Мой скан PDF'));},300);}
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#0a1020;color:#fff}
-header{padding:14px;text-align:center;font-weight:800;font-size:22px}
-.wrap{padding:12px;max-width:640px;margin:auto}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;background:#000;color:#fff;font-family:system-ui;overflow:hidden}
+.top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:linear-gradient(#000a,transparent)}
+.top button{font-size:22px;background:none;border:0;color:#fff}
+#camWrap{position:fixed;inset:0;background:#111;display:flex;align-items:center;justify-content:center}
+#video{width:100%;height:100%;object-fit:cover}
+#autoFrame{position:absolute;width:62%;height:52%;border:3px solid #00d8b0;border-radius:6px;box-shadow:0 0 0 9999px rgba(0,0,0,.18);pointer-events:none;transition:.3s}
+#autoFrame::after{content:"Авто-рамка: наведи на лист";position:absolute;top:-26px;left:0;font-size:12px;background:#00d8b0;color:#000;padding:3px 8px;border-radius:8px}
+.modeToggle{position:absolute;bottom:172px;left:50%;transform:translateX(-50%);display:flex;background:rgba(0,0,0,.6);border-radius:999px;padding:4px;z-index:20}
+.modeToggle button{border:0;padding:9px 18px;border-radius:999px;background:transparent;color:#fff;font-weight:700}
+.modeToggle button.on{background:#fff;color:#000}
+.bottomNav{position:fixed;bottom:0;left:0;right:0;background:#000;padding:10px 8px 14px;z-index:20}
+.bottomRow{display:flex;justify-content:space-around;align-items:flex-end;text-align:center;font-size:12px;color:#ccc}
+.bottomRow .act{color:#00d8b0}
+.shutter{width:72px;height:72px;border:4px solid #00d8b0;border-radius:50%;background:#fff}
+.smallBtn{background:#1c1c1c;border:0;color:#fff;padding:8px 10px;border-radius:12px;font-size:12px}
+#cropScreen{display:none;position:fixed;inset:0;background:#000;z-index:50;flex-direction:column}
+#cropImgWrap{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#111}
+#cropImg{max-width:100%;max-height:100%;display:block}
+.corner{position:absolute;width:28px;height:28px;background:#fff;border:3px solid #00d8b0;border-radius:50%;touch-action:none;z-index:6}
+.edge{position:absolute;width:44px;height:22px;background:#fff;border:2px solid #00d8b0;border-radius:999px;touch-action:none;z-index:5}
+#loupe{position:absolute;width:130px;height:130px;border:3px solid #fff;border-radius:50%;overflow:hidden;display:none;z-index:10;pointer-events:none;background:#000}
+#loupeInner{position:absolute;width:400%;height:400%}
+#cropBar{display:flex;gap:8px;justify-content:space-around;align-items:center;padding:10px;background:#1a1a1a}
+#cropBar button{background:#2a2a2a;border:0;color:#fff;padding:10px;border-radius:12px}
+#okBtn{background:#00c9a0!important;font-size:22px;padding:10px 22px!important}
+#pagesBar{display:none;position:fixed;left:0;right:0;bottom:170px;z-index:19;background:rgba(0,0,0,.7);padding:8px;overflow-x:auto;white-space:nowrap}
+#pagesBar img{width:64px;height:84px;object-fit:cover;border-radius:8px;margin-right:8px;border:2px solid #00d8b0}
+#panel{position:fixed;left:0;right:0;bottom:0;top:0;z-index:40;background:#0a1020;overflow:auto;display:none;padding:14px}
 .card{background:#141c36;border:1px solid #2c3968;border-radius:16px;padding:12px;margin-bottom:12px}
-button{width:100%;padding:14px;border:0;border-radius:12px;font-size:17px;font-weight:700;margin:6px 0;cursor:pointer}
+button.big{width:100%;padding:14px;border:0;border-radius:12px;font-size:17px;font-weight:700;margin:6px 0}
 .primary{background:#25e3ff;color:#000}.green{background:#b8ff3d;color:#000}.ghost{background:#243158;color:#fff}
-input[type=range]{width:100%}label{display:block;margin:10px 0 4px;color:#94a2cb}
-#stage{position:relative;background:#000;border-radius:12px;overflow:hidden;min-height:260px;display:flex;align-items:center;justify-content:center}
-#stage img,#stage video{max-width:100%;display:block}
-.corner{position:absolute;width:36px;height:36px;border:3px solid #b8ff3d;border-radius:50%;background:rgba(184,255,61,.25);touch-action:none;z-index:5}
-#preview{width:100%;border-radius:12px;background:#fff}
-#status{color:#b8ff3d;text-align:center;padding:8px}
+input[type=range]{width:100%}select{width:100%;padding:12px;border-radius:10px;background:#0a1020;color:#fff}
+.thumb{width:100%;border-radius:10px;margin-top:8px}
 </style></head><body>
-<header>PDF — сканер</header>
-<div class="wrap">
-<div class="card">
-<button class="primary" onclick="document.getElementById('fileCam').click()">📷 Снять / Выбрать фото</button>
-<input id="fileCam" type="file" accept="image/*" capture="environment" hidden>
-<button class="ghost" onclick="document.getElementById('fileGal').click()">🖼️ Из галереи</button>
-<input id="fileGal" type="file" accept="image/*" hidden>
-<div id="status">Выбери фото — потом тяни углы</div>
-<div id="stage"><span style="color:#888">Фото появится здесь</span></div>
+<div id="camWrap"><video id="video" autoplay playsinline muted></video><div id="autoFrame"></div></div>
+<div class="top"><button onclick="closeApp()">✕</button><div><button onclick="toggleFlash()">⚡</button> <button>✨</button> <button>HD</button> <button onclick="showPanel()">⋮</button></div></div>
+<div class="modeToggle"><button id="mOne" class="on" onclick="setMode('one')">Одна страница</button><button id="mGroup" onclick="setMode('group')">Группа</button></div>
+<div id="pagesBar"></div>
+<div class="bottomNav"><div style="display:flex;justify-content:space-between;padding:0 10px;color:#aaa;font-size:13px"><span>В Word</span><span>Подписать</span><span style="color:#00d8b0;font-weight:800">Скан</span><span>Умный ластик</span><span>Удо...</span></div>
+<div class="bottomRow" style="margin-top:10px">
+<div onclick="showPanel()"><div style="font-size:24px">⊞</div>Все функции</div>
+<div><button class="shutter" onclick="capture()"></button></div>
+<div onclick="document.getElementById('gal').click()"><div style="font-size:24px">🖼️</div>Импорт<br>изображений</div>
+<div onclick="document.getElementById('files').click()"><div style="font-size:24px">📁</div>Импорт<br>файлов</div>
+</div></div>
+<input id="gal" type="file" accept="image/*" multiple hidden><input id="files" type="file" accept="image/*,.pdf" multiple hidden>
+<!-- CROP -->
+<div id="cropScreen">
+<div style="display:flex;justify-content:space-between;padding:12px"><span>← Обрезка</span><span id="cropInfo"></span></div>
+<div id="cropImgWrap"><img id="cropImg"><div id="loupe"><img id="loupeInner"></div></div>
+<div id="cropBar"><button onclick="rotate(-90)">↩ Влево</button><button onclick="rotate(90)">↪ Вправо</button><button onclick="autoCrop()">◧ Автообрезка</button><button onclick="fitAll()">⤢ Все</button><button id="okBtn" onclick="confirmCrop()">✓</button></div>
 </div>
-<div class="card">
-<label>Режим</label>
-<select id="mode" onchange="apply()" style="width:100%;padding:12px;border-radius:10px;background:#0a1020;color:#fff">
-<option value="orig">Оригинал</option><option value="bw">Чёрно-белый</option><option value="contrast">Контраст</option>
-</select>
-<label>Яркость <span id="vB">100</span></label><input id="bright" type="range" min="50" max="180" value="100" oninput="apply()">
-<label>Контраст <span id="vC">100</span></label><input id="contrast" type="range" min="50" max="200" value="100" oninput="apply()">
-<label>Резкость / Насыщенность <span id="vS">100</span></label><input id="sat" type="range" min="0" max="200" value="100" oninput="apply()">
+<!-- PANEL -->
+<div id="panel">
+<h2>PDF — сканер</h2>
+<div class="card"><div id="status">Готово. Сними или выбери фото.</div>
+<div>Страниц в группе: <b id="count">0</b></div>
+<label>Режим</label><select id="modeSel"><option value="orig">Оригинал</option><option value="bw">Чёрно-белый</option><option value="contrast">Контраст</option></select>
+<label>Яркость</label><input id="bright" type="range" min="50" max="180" value="100">
+<label>Контраст</label><input id="contrast" type="range" min="50" max="200" value="100">
+<label>Насыщенность</label><input id="sat" type="range" min="0" max="200" value="100">
+<button class="big green" onclick="makePDF()">⬇️ Скачать PDF (все страницы группы)</button>
+<button class="big primary" onclick="sharePDF()">📤 Поделиться в Телеграм / Мессенджеры</button>
+<button class="big ghost" onclick="shareTelegram()">✈️ Сразу в Телеграм</button>
+<button class="big ghost" onclick="makeJPG()">⬇️ Скачать JPG (текущая)</button>
+<button class="big ghost" onclick="saveArchive()">💾 В архив</button>
+<button class="big ghost" onclick="closePanel()">← Назад к камере</button>
 </div>
-<div class="card">
-<button class="green" onclick="makePDF()">⬇️ Скачать PDF</button>
-<button class="ghost" onclick="makeJPG()">⬇️ Скачать JPG</button>
-<button class="primary" onclick="sharePDF()">📤 Поделиться в Телеграм / Мессенджеры</button>
-<button class="ghost" onclick="shareTelegram()">✈️ Сразу в Телеграм</button>
-<button class="ghost" onclick="shareWhatsApp()">💬 Сразу в WhatsApp</button>
-<button class="ghost" onclick="saveArchive()">💾 В архив</button>
-<div id="archive"></div>
+<div class="card"><b>Архив</b><div id="archive"></div></div>
+<div class="card"><b>Страницы группы</b><div id="groupList"></div></div>
 </div>
-<canvas id="preview" style="display:none"></canvas>
-</div>
+<canvas id="cv" style="display:none"></canvas>
 <script>
-let img=new Image(), corners=[{x:10,y:10},{x:90,y:10},{x:90,y:90},{x:10,y:90}], cur=null;
-const stage=document.getElementById('stage'), status=document.getElementById('status');
-function loadFile(e){const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{img.onload=()=>{show()}; img.src=r.result}; r.readAsDataURL(f)}
-document.getElementById('fileCam').onchange=loadFile; document.getElementById('fileGal').onchange=loadFile;
-function show(){stage.innerHTML=''; let el=document.createElement('img'); el.id='mainImg'; el.src=img.src; el.style.filter=filterStr(); stage.appendChild(el);
-corners.forEach((c,i)=>{let d=document.createElement('div'); d.className='corner'; d.dataset.i=i; positionCorner(d,c); stage.appendChild(d);
-d.addEventListener('touchstart',e=>{cur=d; e.preventDefault()}); d.addEventListener('touchmove',e=>{if(!cur) return; let t=e.touches[0], r=stage.getBoundingClientRect(); let x=(t.clientX-r.left)/r.width*100, y=(t.clientY-r.top)/r.height*100; x=Math.max(0,Math.min(100,x)); y=Math.max(0,Math.min(100,y)); corners[i]={x,y}; positionCorner(d,corners[i]); applyCrop();}); d.addEventListener('touchend',()=>cur=null);
-d.addEventListener('mousedown',()=>cur=d);}); 
-document.addEventListener('mousemove',e=>{if(!cur) return; let r=stage.getBoundingClientRect(); let i=+cur.dataset.i; let x=(e.clientX-r.left)/r.width*100, y=(e.clientY-r.top)/r.height*100; corners[i]={x:Math.max(0,Math.min(100,x)), y:Math.max(0,Math.min(100,y))}; positionCorner(cur,corners[i]); applyCrop();});
-document.addEventListener('mouseup',()=>cur=null);
-status.textContent='Тяни зелёные кружки по углам листа'; applyCrop();}
-function positionCorner(d,c){d.style.left='calc('+c.x+'% - 18px)'; d.style.top='calc('+c.y+'% - 18px)'}
-function filterStr(){let b=document.getElementById('bright').value, c=document.getElementById('contrast').value, s=document.getElementById('sat').value; let m=document.getElementById('mode').value; let f=`brightness(${b}%) contrast(${c}%) saturate(${s}%)`; if(m=='bw') f+=' grayscale(100%)'; if(m=='contrast') f+=' contrast(130%)'; return f}
-function apply(){document.getElementById('vB').textContent=document.getElementById('bright').value; document.getElementById('vC').textContent=document.getElementById('contrast').value; document.getElementById('vS').textContent=document.getElementById('sat').value; let im=document.getElementById('mainImg'); if(im) im.style.filter=filterStr(); applyCrop()}
-function applyCrop(){if(!img.src) return; let cv=document.getElementById('preview'); let iw=img.naturalWidth, ih=img.naturalHeight; let pts=corners.map(c=>({x:c.x/100*iw, y:c.y/100*ih})); let w=Math.max(200, Math.hypot(pts[1].x-pts[0].x, pts[1].y-pts[0].y)); let h=Math.max(200, Math.hypot(pts[3].x-pts[0].x, pts[3].y-pts[0].y)); cv.width=w; cv.height=h; let ctx=cv.getContext('2d'); ctx.filter=filterStr(); ctx.drawImage(img, pts[0].x, pts[0].y, w, h, 0, 0, w, h); cv.style.display='block';}
-function makePDF(){if(!img.src){alert('Сначала выбери фото'); return} applyCrop(); let cv=document.getElementById('preview'); let data=cv.toDataURL('image/jpeg',0.9); const {jsPDF}=window.jspdf; let pdf=new jsPDF({orientation: cv.width>cv.height?'l':'p', unit:'mm', format:'a4'}); let pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(); pdf.addImage(data,'JPEG',0,0,pw,ph); pdf.save('scan.pdf'); status.textContent='PDF скачан ✓'}
-function makeJPG(){if(!img.src){alert('Сначала выбери фото'); return} applyCrop(); let a=document.createElement('a'); a.href=document.getElementById('preview').toDataURL('image/jpeg',0.92); a.download='scan.jpg'; a.click()}
-function saveArchive(){if(!img.src) return; applyCrop(); let d=document.getElementById('preview').toDataURL('image/jpeg',0.85); let im=document.createElement('img'); im.src=d; im.style.cssText='width:100%;border-radius:10px;margin-top:8px'; document.getElementById('archive').appendChild(im); status.textContent='Сохранено в архив на этой странице ✓'}
-
-async function getPDFBlob(){applyCrop(); let cv=document.getElementById('preview'); let data=cv.toDataURL('image/jpeg',0.9); const {jsPDF}=window.jspdf; let pdf=new jsPDF({orientation: cv.width>cv.height?'l':'p', unit:'mm', format:'a4'}); let pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(); pdf.addImage(data,'JPEG',0,0,pw,ph); return pdf.output('blob');}
-async function sharePDF(){if(!img.src){alert('Сначала выбери фото'); return} try{let blob=await getPDFBlob(); let file=new File([blob],'scan.pdf',{type:'application/pdf'}); if(navigator.canShare && navigator.canShare({files:[file]})){await navigator.share({files:[file], title:'PDF — скан', text:'Мой скан'}); status.textContent='Отправлено ✓'; return;} // fallback - download then open share sheet
-let a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='scan.pdf'; a.click(); alert('PDF скачан. Теперь выбери Телеграм в меню Поделиться.'); }catch(e){alert('Не получилось поделиться, PDF скачан. Отправь его вручную в Телеграм.');}}
-function shareTelegram(){makePDF(); setTimeout(()=>{window.open('https://t.me/share/url?url='+encodeURIComponent('Мой скан PDF — сделал в приложении PDF')+'&text='+encodeURIComponent('Мой скан PDF'));},300);}
-function shareWhatsApp(){makePDF(); setTimeout(()=>{window.open('https://wa.me/?text='+encodeURIComponent('Мой скан PDF'));},300);}
+let stream=null, mode='one', pages=[], currentData=null, corners=[{x:12,y:15},{x:88,y:15},{x:88,y:85},{x:12,y:85}], rot=0;
+const video=document.getElementById('video');
+async function startCam(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false}); video.srcObject=stream;}catch(e){document.getElementById('status').textContent='Камера не дала доступ — выбери фото из галереи внизу';}}
+startCam();
+function setMode(m){mode=m; document.getElementById('mOne').className=m=='one'?'on':''; document.getElementById('mGroup').className=m=='group'?'on':''; document.getElementById('pagesBar').style.display=m=='group'?'block':'none';}
+function toggleFlash(){alert('Вспышка — в браузере включается через кнопку камеры телефона, если есть. В нашей версии — авто-свет через фильтры.');}
+function closeApp(){if(confirm('Закрыть камеру?')){if(stream) stream.getTracks().forEach(t=>t.stop());}}
+function showPanel(){document.getElementById('panel').style.display='block'; updateGroup();} function closePanel(){document.getElementById('panel').style.display='none';}
+function capture(){if(!video.videoWidth){alert('Камера ещё не запустилась — выбери фото из галереи'); return;} let c=document.createElement('canvas'); c.width=video.videoWidth; c.height=video.videoHeight; c.getContext('2d').drawImage(video,0,0); openCrop(c.toDataURL('image/jpeg',0.92));}
+function handleFiles(e){[...e.target.files].forEach(f=>{let r=new FileReader(); r.onload=()=>{ if(mode=='group'){pages.push(r.result); updateGroup(); document.getElementById('status').textContent='Добавлено в группу: '+pages.length;} else openCrop(r.result);}; r.readAsDataURL(f);});}
+document.getElementById('gal').onchange=handleFiles; document.getElementById('files').onchange=handleFiles;
+function openCrop(src){currentData=src; document.getElementById('cropScreen').style.display='flex'; let img=document.getElementById('cropImg'); img.src=src; img.onload=()=>{buildHandles();}; document.getElementById('cropInfo').textContent=mode=='group'?'Группа':'Одна страница';}
+function buildHandles(){let w=document.getElementById('cropImgWrap'); [...w.querySelectorAll('.corner,.edge')].forEach(e=>e.remove()); corners.forEach((c,i)=>{let d=document.createElement('div'); d.className='corner'; d.dataset.i=i; place(d,c); w.appendChild(d); bindDrag(d,i,'corner');}); [[0,1,'t'],[1,2,'r'],[2,3,'b'],[3,0,'l']].forEach(([a,b,side])=>{let e=document.createElement('div'); e.className='edge'; e.dataset.side=side; placeEdge(e,side); w.appendChild(e); bindEdge(e,side);});}
+function place(d,c){let r=document.getElementById('cropImg').getBoundingClientRect(), wr=document.getElementById('cropImgWrap').getBoundingClientRect(); d.style.left=(r.left-wr.left + c.x/100*r.width -14)+'px'; d.style.top=(r.top-wr.top + c.y/100*r.height -14)+'px';}
+function placeEdge(e,side){let r=document.getElementById('cropImg').getBoundingClientRect(), wr=document.getElementById('cropImgWrap').getBoundingClientRect(); let mid; if(side=='t') mid={x:(corners[0].x+corners[1].x)/2, y:corners[0].y}; if(side=='b') mid={x:(corners[2].x+corners[3].x)/2, y:corners[2].y}; if(side=='l') mid={x:corners[0].x, y:(corners[0].y+corners[3].y)/2}; if(side=='r') mid={x:corners[1].x, y:(corners[1].y+corners[2].y)/2}; e.style.left=(r.left-wr.left + mid.x/100*r.width -22)+'px'; e.style.top=(r.top-wr.top + mid.y/100*r.height -11)+'px';}
+function showLoupe(clientX,clientY){let loupe=document.getElementById('loupe'), inner=document.getElementById('loupeInner'); let img=document.getElementById('cropImg'); loupe.style.display='block'; loupe.style.left=(clientX-100)+'px'; loupe.style.top=(clientY-170)+'px'; inner.src=img.src; inner.style.width=(img.width*4)+'px'; inner.style.height=(img.height*4)+'px';}
+function bindDrag(d,i){let move=(x,y)=>{let r=document.getElementById('cropImg').getBoundingClientRect(); let nx=(x-r.left)/r.width*100, ny=(y-r.top)/r.height*100; corners[i]={x:Math.max(0,Math.min(100,nx)), y:Math.max(0,Math.min(100,ny))}; place(d,corners[i]); buildHandles(); showLoupe(x,y);}; d.addEventListener('touchstart',e=>{e.preventDefault(); showLoupe(e.touches[0].clientX,e.touches[0].clientY)}); d.addEventListener('touchmove',e=>{e.preventDefault(); move(e.touches[0].clientX,e.touches[0].clientY)}); d.addEventListener('touchend',()=>document.getElementById('loupe').style.display='none'); d.addEventListener('mousedown',e=>{let mm=ev=>move(ev.clientX,ev.clientY); let mu=()=>{document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu); document.getElementById('loupe').style.display='none'}; document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu); showLoupe(e.clientX,e.clientY);});}
+function bindEdge(e,side){let move=(x,y)=>{let r=document.getElementById('cropImg').getBoundingClientRect(); let nx=(x-r.left)/r.width*100, ny=(y-r.top)/r.height*100; if(side=='t'){corners[0].y=ny; corners[1].y=ny;} if(side=='b'){corners[2].y=ny; corners[3].y=ny;} if(side=='l'){corners[0].x=nx; corners[3].x=nx;} if(side=='r'){corners[1].x=nx; corners[2].x=nx;} buildHandles();}; e.addEventListener('touchmove',ev=>{ev.preventDefault(); move(ev.touches[0].clientX,ev.touches[0].clientY)}); e.addEventListener('mousedown',ev=>{let mm=e2=>move(e2.clientX,e2.clientY); let mu=()=>{document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu)}; document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);});}
+function rotate(d){rot=(rot+d+360)%360; document.getElementById('cropImg').style.transform=`rotate(${rot}deg)`;}
+function autoCrop(){corners=[{x:8,y:8},{x:92,y:8},{x:92,y:92},{x:8,y:92}]; buildHandles(); document.getElementById('status').textContent='Автообрезка: рамка на весь лист';}
+function fitAll(){corners=[{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]; buildHandles();}
+function filterStr(){let b=document.getElementById('bright').value, c=document.getElementById('contrast').value, s=document.getElementById('sat').value, m=document.getElementById('modeSel').value; let f=`brightness(${b}%) contrast(${c}%) saturate(${s}%)`; if(m=='bw') f+=' grayscale(100%)'; if(m=='contrast') f+=' contrast(130%)'; return f;}
+function cropOne(src){return new Promise(res=>{let im=new Image(); im.onload=()=>{let iw=im.naturalWidth, ih=im.naturalHeight; let pts=corners.map(p=>({x:p.x/100*iw, y:p.y/100*ih})); let w=Math.max(200,Math.hypot(pts[1].x-pts[0].x,pts[1].y-pts[0].y)); let h=Math.max(200,Math.hypot(pts[3].x-pts[0].x,pts[3].y-pts[0].y)); let cv=document.createElement('canvas'); cv.width=w; cv.height=h; let ctx=cv.getContext('2d'); ctx.filter=filterStr(); ctx.save(); ctx.translate(w/2,h/2); ctx.rotate(rot*Math.PI/180); ctx.drawImage(im,pts[0].x,pts[0].y,w,h,-w/2,-h/2,w,h); ctx.restore(); res(cv.toDataURL('image/jpeg',0.9));}; im.src=src;});}
+async function confirmCrop(){let out=await cropOne(currentData); if(mode=='group'){pages.push(out); updateGroup(); document.getElementById('status').textContent='Добавлено в группу: '+pages.length+' страниц';} else {pages=[out]; updateGroup();} document.getElementById('cropScreen').style.display='none'; showPanel();}
+function updateGroup(){document.getElementById('count').textContent=pages.length; let bar=document.getElementById('pagesBar'); bar.innerHTML=''; pages.forEach(p=>{let im=document.createElement('img'); im.src=p; bar.appendChild(im);}); let list=document.getElementById('groupList'); list.innerHTML=''; pages.forEach((p,i)=>{let im=document.createElement('img'); im.src=p; im.className='thumb'; let b=document.createElement('button'); b.className='big ghost'; b.textContent='Удалить страницу '+(i+1); b.onclick=()=>{pages.splice(i,1); updateGroup();}; list.appendChild(im); list.appendChild(b);});}
+async function makePDF(){if(!pages.length){alert('Сначала сними или добавь фото'); return;} const {jsPDF}=window.jspdf; let pdf=new jsPDF({unit:'mm',format:'a4'}); for(let i=0;i<pages.length;i++){if(i>0) pdf.addPage(); let im=new Image(); im.src=pages[i]; await new Promise(r=>im.onload=r); let pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight(); pdf.addImage(pages[i],'JPEG',0,0,pw,ph);} pdf.save('scan-group.pdf'); document.getElementById('status').textContent='PDF скачан: '+pages.length+' стр. ✓';}
+function makeJPG(){if(!pages.length){alert('Нет страниц'); return;} let a=document.createElement('a'); a.href=pages[pages.length-1]; a.download='scan.jpg'; a.click();}
+function saveArchive(){if(!pages.length) return; let arch=document.getElementById('archive'); pages.forEach(p=>{let im=document.createElement('img'); im.src=p; im.className='thumb'; arch.appendChild(im);}); document.getElementById('status').textContent='Сохранено в архив ✓';}
+async function sharePDF(){if(!pages.length){alert('Сначала сними фото'); return;} try{const {jsPDF}=window.jspdf; let pdf=new jsPDF({unit:'mm',format:'a4'}); for(let i=0;i<pages.length;i++){if(i>0) pdf.addPage(); pdf.addImage(pages[i],'JPEG',0,0,pdf.internal.pageSize.getWidth(),pdf.internal.pageSize.getHeight());} let blob=pdf.output('blob'); let file=new File([blob],'scan.pdf',{type:'application/pdf'}); if(navigator.canShare && navigator.canShare({files:[file]})){await navigator.share({files:[file], title:'PDF — скан'}); return;} let a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='scan.pdf'; a.click(); alert('PDF скачан — теперь отправь его в Телеграм из Загрузок');}catch(e){alert('PDF скачан, отправь вручную');}}
+function shareTelegram(){makePDF(); setTimeout(()=>window.open('https://t.me/share/url?url='+encodeURIComponent('Мой скан PDF')+'&text='+encodeURIComponent('Мой скан PDF')),300);}
 </script><script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body></html>
