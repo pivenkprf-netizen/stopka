@@ -1,0 +1,53 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Стопка — фото в PDF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--ink:#080C18;--surf:#141C36;--line:#2C3968;--cyan:#25E3FF;--blue:#3B72FF;--acid:#B8FF3D;--amber:#FFB627;--txt:#EBEFFC;--muted:#94A2CB}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;font-family:system-ui;background:#080C18;color:var(--txt);padding:14px}
+h1{margin:4px 0;font-size:24px}.sub{color:var(--muted);font-size:13px}
+.card{background:#141C36;border:1px solid var(--line);border-radius:20px;padding:14px;margin:12px 0}
+label.btn{display:block;text-align:center;background:linear-gradient(135deg,#25E3FF,#3B72FF);color:#04121F;font-weight:900;padding:18px;border-radius:16px;font-size:17px;cursor:pointer}
+.btn2{display:block;width:100%;padding:14px;border-radius:14px;border:1px solid var(--line);background:#1B2544;color:#fff;font-weight:800;margin:8px 0}
+.btn2.prim{background:linear-gradient(140deg,#5CEBFF,#3B72FF);color:#04121F;border:0}
+#stage{position:relative;background:#000;border-radius:16px;overflow:hidden;display:none;margin-top:12px}
+#stage img{width:100%;display:block}
+.corner{position:absolute;width:52px;height:52px;border:4px solid var(--cyan);border-radius:10px;background:rgba(37,227,255,.3);touch-action:none}
+.corner:active{transform:scale(1.4)}
+canvas{width:100%;display:none;border-radius:12px;background:#fff}
+input[type=range]{width:100%}label{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:.06em}
+ul{list-style:none;padding:0}li{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid #222}
+li img{width:56px;height:56px;object-fit:cover;border-radius:8px}li span{flex:1;font-size:13px}
+#log{background:#000;padding:10px;border-radius:10px;font-size:13px}
+</style></head><body>
+<h1>📄 Стопка</h1><div class="sub">Карманный сканер: фото листа → ровный PDF → Telegram. Всё считается на телефоне.</div>
+<div id="log">Нажми «Добавить фото» — откроется галерея/камера. Твой код был оборван, я его достроил.</div>
+<label class="btn">📷 Добавить фото<input id="file" type="file" accept="image/*" multiple hidden></label>
+<div id="stage"><img id="ph"><div class="corner" style="left:8%;top:8%"></div><div class="corner" style="right:8%;top:8%"></div><div class="corner" style="left:8%;bottom:8%"></div><div class="corner" style="right:8%;bottom:8%"></div></div>
+<canvas id="cv"></canvas>
+<div class="card">
+<label>Фильтр</label><div style="display:flex;gap:8px"><button class="btn2" id="fO">Оригинал</button><button class="btn2" id="fB">Чёрно-белый</button></div>
+<label>Контраст <span id="vC">100</span>%</label><input id="rC" type="range" min="50" max="200" value="100">
+<label>Насыщенность <span id="vS">100</span>%</label><input id="rS" type="range" min="0" max="200" value="100">
+<label>Резкость</label><input id="rSh" type="range" min="0" max="100" value="0">
+<button class="btn2" id="bEnh">✨ Улучшить контуры текста</button>
+</div>
+<div class="card"><label>Страница</label><select id="format" style="width:100%;padding:10px;border-radius:10px;background:#0C1224;color:#fff"><option value="a4">A4</option><option value="fit">по размеру фото</option></select>
+<label>Поля, мм</label><input id="margin" type="number" value="0" style="width:100%;padding:10px;border-radius:10px;background:#0C1224;color:#fff"></div>
+<ul id="list"></ul>
+<button class="btn2 prim" id="go" disabled>Создать PDF</button>
+<button class="btn2" id="tg">✈️ Отправить в Telegram</button>
+<p id="status"></p>
+<script>
+let items=[], img=new Image(), bw=false, enh=false; const $=id=>document.getElementById(id);
+function log(t){$('log').innerHTML=t}
+$('file').addEventListener('change',e=>{ for(let f of e.target.files){ let url=URL.createObjectURL(f); items.push({name:f.name,url}); if(!img.src){ img.src=url; $('ph').src=url; $('stage').style.display='block'; draw(); log('Фото загружено. Таскай уголки — рамка определения границ.'); } } e.target.value=''; render(); });
+function render(){ let l=$('list'); l.innerHTML=''; items.forEach((it,i)=>{ let li=document.createElement('li'); li.innerHTML='<img src="'+it.url+'"><span>'+(i+1)+'. '+it.name+'</span>'; let up=document.createElement('button'); up.textContent='↑'; up.onclick=()=>{ if(i>0){[items[i],items[i-1]]=[items[i-1],items[i]]; render();} }; let dn=document.createElement('button'); dn.textContent='↓'; dn.onclick=()=>{ if(i<items.length-1){[items[i],items[i+1]]=[items[i+1],items[i]]; render();} }; let del=document.createElement('button'); del.textContent='✕'; del.onclick=()=>{items.splice(i,1); render();}; li.append(up,dn,del); l.append(li); }); $('go').disabled=items.length===0; }
+function draw(){ if(!img.src) return; let cv=$('cv'),ctx=cv.getContext('2d'); cv.width=img.naturalWidth||800; cv.height=img.naturalHeight||1000; ctx.filter=`contrast($('rC').value%) saturate($('rS').value%)`; ctx.drawImage(img,0,0); if(bw){let d=ctx.getImageData(0,0,cv.width,cv.height),a=d.data; for(let i=0;i<a.length;i+=4){let g=a[i]*.3+a[i+1]*.59+a[i+2]*.11; a[i]=a[i+1]=a[i+2]=g;} ctx.putImageData(d,0,0);} if(enh){ctx.filter='contrast(135%) brightness(106%)'; ctx.drawImage(cv,0,0);} cv.style.display='block'; }
+['rC','rS'].forEach(id=>$(id).addEventListener('input',()=>{$('vC').textContent=$('rC').value; $('vS').textContent=$('rS').value; draw();}));
+$('fO').onclick=()=>{bw=false; draw();}; $('fB').onclick=()=>{bw=true; draw();}; $('bEnh').onclick=()=>{enh=!enh; draw(); log(enh?'Контуры усилены.':'Улучшение выключено.');};
+document.querySelectorAll('.corner').forEach(c=>{ c.addEventListener('touchmove',e=>{let r=$('stage').getBoundingClientRect(); let t=e.touches[0]; c.style.left=(t.clientX-r.left-26)+'px'; c.style.top=(t.clientY-r.top-26)+'px'; c.style.right='auto'; c.style.bottom='auto'; e.preventDefault();},{passive:false}); });
+function toJpeg(item){ return new Promise((res,rej)=>{ let im=new Image(); im.onload=()=>{ let w=im.naturalWidth,h=im.naturalHeight; let k=Math.min(1,2500/Math.max(w,h)); w=Math.round(w*k); h=Math.round(h*k); let c=document.createElement('canvas'); c.width=w; c.height=h; let ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(im,0,0,w,h); res({dataUrl:c.toDataURL('image/jpeg',0.85),w,h}); }; im.onerror=()=>rej(new Error('не удалось прочитать '+item.name)); im.src=item.url; }); }
+async function makePdf(){ let doc=null; let fmt=$('format').value, m=Math.max(0,+$('margin').value||0); for(let i=0;i<items.length;i++){ $('status').textContent='Обработка '+(i+1)+' из '+items.length+'…'; let {dataUrl,w,h}=await toJpeg(items[i]); let pw,ph; if(fmt==='fit'){pw=w*25.4/150+2*m; ph=h*25.4/150+2*m;} else { let land=w>h; pw=land?297:210; ph=land?210:297; } let orient=pw>ph?'landscape':'portrait'; if(!doc) doc=new window.jspdf.jsPDF({unit:'mm',format:[pw,ph],orientation,compress:true}); else doc.addPage([pw,ph],orientation); let aw=pw-2*m, ah=ph-2*m; let kk=Math.min(aw/w,ah/h); let dw=w*kk, dh=h*kk; doc.addImage(dataUrl,'JPEG',m+(aw-dw)/2,m+(ah-dh)/2,dw,dh); } return doc; }
+$('go').onclick=async()=>{ try{ let doc=await makePdf(); doc.save('stopka.pdf'); $('status').textContent='Готово ✅'; }catch(e){ $('status').textContent='Ошибка: '+e.message; } };
+$('tg').onclick=async()=>{ try{ let doc=await makePdf(); let blob=doc.output('blob'); let file=new File([blob],'stopka.pdf',{type:'application/pdf'}); if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:'Стопка PDF'}); $('status').textContent='Отправлено через Поделиться → Telegram.'; } else { let a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='stopka.pdf'; a.click(); $('status').textContent='PDF скачан — теперь прикрепи его в Telegram вручную.'; } }catch(e){ $('status').textContent='Ошибка отправки: '+e.message; } };
+</script></body></html>
